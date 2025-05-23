@@ -2,6 +2,8 @@ use crate::prelude::*;
 
 pub mod commands;
 
+use tokio::time::{sleep, Duration};
+
 use lxp::packet::{DeviceFunction, TcpFunction};
 
 #[derive(Eq, PartialEq, Debug, Clone)]
@@ -11,6 +13,7 @@ pub enum ChannelData {
 
 pub type InputsStore = std::collections::HashMap<Serial, lxp::packet::ReadInputs>;
 
+#[derive(Clone)]
 pub struct Coordinator {
     config: ConfigWrapper,
     channels: Channels,
@@ -25,6 +28,113 @@ impl Coordinator {
         futures::try_join!(self.inverter_receiver(), self.mqtt_receiver())?;
 
         Ok(())
+    }
+
+    pub async fn start_polling_tasks(&self) -> Result<()> {
+        info!("Initializing inverter polling tasks...");
+        for inverter_config in self.config.enabled_inverters() {
+            if inverter_config.is_polling_enabled() {
+                info!("Spawning polling task for inverter: {}", inverter_config.datalog());
+                let coordinator_clone = self.clone();
+                let ic = inverter_config.clone(); // Ensure inverter_config is also Clone if not already
+                                                  // config::Inverter is derived Clone
+
+                tokio::spawn(async move {
+                    // The run_inverter_polling_loop will log its own start message
+                    if let Err(e) = coordinator_clone.run_inverter_polling_loop(ic.clone()).await {
+                        error!(
+                            "Polling loop for inverter {} (datalog: {}) exited with error: {:?}",
+                            ic.host(),
+                            ic.datalog(),
+                            e
+                        );
+                    } else {
+                        info!(
+                            "Polling loop for inverter {} (datalog: {}) finished.", // Should not happen with infinite loop unless a shutdown is implemented
+                            ic.host(),
+                            ic.datalog()
+                        );
+                    }
+                });
+            } else {
+                debug!("Polling disabled for inverter {}, skipping task spawning.", inverter_config.datalog());
+            }
+        }
+        Ok(())
+    }
+
+    pub async fn run_inverter_polling_loop(
+        &self,
+        inverter_config: config::Inverter,
+        // TODO: Add a shutdown mechanism in the future if needed.
+    ) -> Result<()> {
+        if !inverter_config.is_polling_enabled() {
+            debug!(
+                "Polling is disabled for inverter {} (datalog: {})",
+                inverter_config.datalog(),
+                inverter_config.host() // Corrected order for debug message
+            );
+            return Ok(());
+        }
+
+        // is_polling_enabled() ensures interval > 0 and is Some.
+        // unwrap_or(0) is just a fallback, though should not be 0 if enabled.
+        let poll_interval = inverter_config.poll_interval_seconds().unwrap_or(0);
+
+        // This check is somewhat redundant due to is_polling_enabled but good for safety.
+        if poll_interval == 0 {
+             debug!(
+                "Polling interval is 0, polling effectively disabled for inverter {} (datalog: {})",
+                inverter_config.datalog(),
+                inverter_config.host() // Corrected order
+            );
+            return Ok(());
+        }
+
+        info!(
+            "Starting polling loop for inverter {} (datalog: {}), interval: {}s",
+            inverter_config.host(),
+            inverter_config.datalog(),
+            poll_interval
+        );
+
+        // Loop indefinitely until the task is cancelled (e.g. program shutdown)
+        loop {
+            debug!( // Changed to debug to reduce log spam during normal operation
+                "Polling inverter {} (datalog: {}) for input registers 0-39",
+                inverter_config.host(),
+                inverter_config.datalog()
+            );
+
+            let cmd = commands::read_inputs::ReadInputs::new(
+                self.channels.clone(),
+                inverter_config.clone(),
+                0_u16, // register start
+                40_u16, // count: typically registers 0-39 are read together
+            );
+
+            match cmd.run().await {
+                Ok(_) => {
+                    trace!( // Changed to trace for successful polls to further reduce spam
+                        "Successfully polled inverter {} (datalog: {})",
+                        inverter_config.host(),
+                        inverter_config.datalog()
+                    );
+                }
+                Err(e) => {
+                    warn!( // Changed to warn as error might be too strong for a failed poll if it recovers
+                        "Error polling inverter {} (datalog: {}): {:?}",
+                        inverter_config.host(),
+                        inverter_config.datalog(),
+                        e
+                    );
+                }
+            }
+
+            sleep(Duration::from_secs(poll_interval)).await;
+        }
+        // This part of the function will not be reached if the loop is infinite.
+        // A graceful shutdown mechanism would allow exiting the loop and returning Ok.
     }
 
     pub fn stop(&self) {
