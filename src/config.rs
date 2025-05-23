@@ -67,7 +67,7 @@ impl Inverter {
     }
 
     pub fn read_timeout(&self) -> u64 {
-        self.read_timeout.unwrap_or(900) // 15 minutes
+        self.read_timeout.unwrap_or(10) // 10 seconds
     }
 } // }}}
 

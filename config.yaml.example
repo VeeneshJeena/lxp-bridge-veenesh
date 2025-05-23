@@ -6,6 +6,7 @@ inverters:
   port: 8000
   serial: 5555555555
   datalog: 2222222222
+  read_timeout: 10 # seconds to wait for data from inverter before timing out and reconnecting. Default is 10s.
   heartbeats: false
   publish_holdings_on_connect: false
 - enabled: false
