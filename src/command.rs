@@ -87,4 +87,86 @@ impl Command {
 
         format!("result/{}", rest)
     }
+
+    pub fn is_write_operation(&self) -> bool {
+        match self {
+            Command::SetHold(_, _, _)
+            | Command::WriteParam(_, _, _)
+            | Command::SetAcChargeTime(_, _, _)
+            | Command::SetAcFirstTime(_, _, _)
+            | Command::SetChargePriorityTime(_, _, _)
+            | Command::SetForcedDischargeTime(_, _, _)
+            | Command::AcCharge(_, _)
+            | Command::ChargePriority(_, _)
+            | Command::ForcedDischarge(_, _)
+            | Command::ChargeRate(_, _)
+            | Command::DischargeRate(_, _)
+            | Command::AcChargeRate(_, _)
+            | Command::AcChargeSocLimit(_, _)
+            | Command::DischargeCutoffSocLimit(_, _) => true,
+
+            Command::ReadInputs(_, _) // Note: Corrected from ReadInputs(_, _, _) as per actual enum
+            | Command::ReadInput(_, _, _)
+            | Command::ReadHold(_, _, _)
+            | Command::ReadParam(_, _)
+            | Command::ReadAcChargeTime(_, _)
+            | Command::ReadAcFirstTime(_, _)
+            | Command::ReadChargePriorityTime(_, _)
+            | Command::ReadForcedDischargeTime(_, _) => false,
+        }
+    }
+
+    pub fn get_inverter_config(&self) -> &config::Inverter {
+        match self {
+            Command::ReadInputs(inverter, _) |
+            Command::ReadInput(inverter, _, _) |
+            Command::ReadHold(inverter, _, _) |
+            Command::ReadParam(inverter, _) |
+            Command::ReadAcChargeTime(inverter, _) |
+            Command::ReadAcFirstTime(inverter, _) |
+            Command::ReadChargePriorityTime(inverter, _) |
+            Command::ReadForcedDischargeTime(inverter, _) |
+            Command::SetHold(inverter, _, _) |
+            Command::WriteParam(inverter, _, _) |
+            Command::SetAcChargeTime(inverter, _, _) |
+            Command::SetAcFirstTime(inverter, _, _) |
+            Command::SetChargePriorityTime(inverter, _, _) |
+            Command::SetForcedDischargeTime(inverter, _, _) |
+            Command::AcCharge(inverter, _) |
+            Command::ChargePriority(inverter, _) |
+            Command::ForcedDischarge(inverter, _) |
+            Command::ChargeRate(inverter, _) |
+            Command::DischargeRate(inverter, _) |
+            Command::AcChargeRate(inverter, _) |
+            Command::AcChargeSocLimit(inverter, _) |
+            Command::DischargeCutoffSocLimit(inverter, _) => inverter,
+        }
+    }
+
+    pub fn variant_name(&self) -> &'static str {
+        match self {
+            Command::ReadInputs(_, _) => "ReadInputs",
+            Command::ReadInput(_, _, _) => "ReadInput",
+            Command::ReadHold(_, _, _) => "ReadHold",
+            Command::ReadParam(_, _) => "ReadParam",
+            Command::ReadAcChargeTime(_, _) => "ReadAcChargeTime",
+            Command::ReadAcFirstTime(_, _) => "ReadAcFirstTime",
+            Command::ReadChargePriorityTime(_, _) => "ReadChargePriorityTime",
+            Command::ReadForcedDischargeTime(_, _) => "ReadForcedDischargeTime",
+            Command::SetHold(_, _, _) => "SetHold",
+            Command::WriteParam(_, _, _) => "WriteParam",
+            Command::SetAcChargeTime(_, _, _) => "SetAcChargeTime",
+            Command::SetAcFirstTime(_, _, _) => "SetAcFirstTime",
+            Command::SetChargePriorityTime(_, _, _) => "SetChargePriorityTime",
+            Command::SetForcedDischargeTime(_, _, _) => "SetForcedDischargeTime",
+            Command::AcCharge(_, _) => "AcCharge",
+            Command::ChargePriority(_, _) => "ChargePriority",
+            Command::ForcedDischarge(_, _) => "ForcedDischarge",
+            Command::ChargeRate(_, _) => "ChargeRate",
+            Command::DischargeRate(_, _) => "DischargeRate",
+            Command::AcChargeRate(_, _) => "AcChargeRate",
+            Command::AcChargeSocLimit(_, _) => "AcChargeSocLimit",
+            Command::DischargeCutoffSocLimit(_, _) => "DischargeCutoffSocLimit",
+        }
+    }
 }
