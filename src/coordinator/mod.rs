@@ -165,10 +165,22 @@ impl Coordinator {
                     let topic_reply = command.to_result_topic();
                     let result = self.process_command(command).await;
 
+                    let payload = match &result {
+                        Ok(_) => "OK".to_string(),
+                        Err(e) => {
+                            // Check if the error message indicates it was due to read-only mode
+                            if e.to_string().contains("read-only mode") {
+                                "FAIL: Command disallowed (read-only mode)".to_string()
+                            } else {
+                                "FAIL".to_string()
+                            }
+                        }
+                    };
+
                     let reply = mqtt::ChannelData::Message(mqtt::Message {
                         topic: topic_reply,
                         retain: false,
-                        payload: if result.is_ok() { "OK" } else { "FAIL" }.to_string(),
+                        payload,
                     });
                     if self.channels.to_mqtt.send(reply).is_err() {
                         bail!("send(to_mqtt) failed - channel closed?");
@@ -215,27 +227,78 @@ impl Coordinator {
                 self.read_time_register(inverter, Action::ForcedDischarge(num))
                     .await
             }
-            SetHold(inverter, register, value) => self.set_hold(inverter, register, value).await,
+            SetHold(inverter, register, value) => {
+                if inverter.is_read_only() {
+                    bail!(
+                        "Command SetHold disallowed: Inverter {} (datalog: {}) is in read-only mode",
+                        inverter.host(),
+                        inverter.datalog()
+                    );
+                }
+                self.set_hold(inverter, register, value).await
+            }
             WriteParam(inverter, register, value) => {
+                if inverter.is_read_only() {
+                    bail!(
+                        "Command WriteParam disallowed: Inverter {} (datalog: {}) is in read-only mode",
+                        inverter.host(),
+                        inverter.datalog()
+                    );
+                }
                 self.write_param(inverter, register, value).await
             }
             SetAcChargeTime(inverter, num, values) => {
+                if inverter.is_read_only() {
+                    bail!(
+                        "Command SetAcChargeTime disallowed: Inverter {} (datalog: {}) is in read-only mode",
+                        inverter.host(),
+                        inverter.datalog()
+                    );
+                }
                 self.set_time_register(inverter, Action::AcCharge(num), values)
                     .await
             }
             SetAcFirstTime(inverter, num, values) => {
+                if inverter.is_read_only() {
+                    bail!(
+                        "Command SetAcFirstTime disallowed: Inverter {} (datalog: {}) is in read-only mode",
+                        inverter.host(),
+                        inverter.datalog()
+                    );
+                }
                 self.set_time_register(inverter, Action::AcFirst(num), values)
                     .await
             }
             SetChargePriorityTime(inverter, num, values) => {
+                if inverter.is_read_only() {
+                    bail!(
+                        "Command SetChargePriorityTime disallowed: Inverter {} (datalog: {}) is in read-only mode",
+                        inverter.host(),
+                        inverter.datalog()
+                    );
+                }
                 self.set_time_register(inverter, Action::ChargePriority(num), values)
                     .await
             }
             SetForcedDischargeTime(inverter, num, values) => {
+                if inverter.is_read_only() {
+                    bail!(
+                        "Command SetForcedDischargeTime disallowed: Inverter {} (datalog: {}) is in read-only mode",
+                        inverter.host(),
+                        inverter.datalog()
+                    );
+                }
                 self.set_time_register(inverter, Action::ForcedDischarge(num), values)
                     .await
             }
             AcCharge(inverter, enable) => {
+                if inverter.is_read_only() {
+                    bail!(
+                        "Command AcCharge disallowed: Inverter {} (datalog: {}) is in read-only mode",
+                        inverter.host(),
+                        inverter.datalog()
+                    );
+                }
                 self.update_hold(
                     inverter,
                     Register::Register21,
@@ -245,6 +308,13 @@ impl Coordinator {
                 .await
             }
             ChargePriority(inverter, enable) => {
+                if inverter.is_read_only() {
+                    bail!(
+                        "Command ChargePriority disallowed: Inverter {} (datalog: {}) is in read-only mode",
+                        inverter.host(),
+                        inverter.datalog()
+                    );
+                }
                 self.update_hold(
                     inverter,
                     Register::Register21,
@@ -255,6 +325,13 @@ impl Coordinator {
             }
 
             ForcedDischarge(inverter, enable) => {
+                if inverter.is_read_only() {
+                    bail!(
+                        "Command ForcedDischarge disallowed: Inverter {} (datalog: {}) is in read-only mode",
+                        inverter.host(),
+                        inverter.datalog()
+                    );
+                }
                 self.update_hold(
                     inverter,
                     Register::Register21,
@@ -264,25 +341,60 @@ impl Coordinator {
                 .await
             }
             ChargeRate(inverter, pct) => {
+                if inverter.is_read_only() {
+                    bail!(
+                        "Command ChargeRate disallowed: Inverter {} (datalog: {}) is in read-only mode",
+                        inverter.host(),
+                        inverter.datalog()
+                    );
+                }
                 self.set_hold(inverter, Register::ChargePowerPercentCmd, pct)
                     .await
             }
             DischargeRate(inverter, pct) => {
+                if inverter.is_read_only() {
+                    bail!(
+                        "Command DischargeRate disallowed: Inverter {} (datalog: {}) is in read-only mode",
+                        inverter.host(),
+                        inverter.datalog()
+                    );
+                }
                 self.set_hold(inverter, Register::DischgPowerPercentCmd, pct)
                     .await
             }
 
             AcChargeRate(inverter, pct) => {
+                if inverter.is_read_only() {
+                    bail!(
+                        "Command AcChargeRate disallowed: Inverter {} (datalog: {}) is in read-only mode",
+                        inverter.host(),
+                        inverter.datalog()
+                    );
+                }
                 self.set_hold(inverter, Register::AcChargePowerCmd, pct)
                     .await
             }
 
             AcChargeSocLimit(inverter, pct) => {
+                if inverter.is_read_only() {
+                    bail!(
+                        "Command AcChargeSocLimit disallowed: Inverter {} (datalog: {}) is in read-only mode",
+                        inverter.host(),
+                        inverter.datalog()
+                    );
+                }
                 self.set_hold(inverter, Register::AcChargeSocLimit, pct)
                     .await
             }
 
             DischargeCutoffSocLimit(inverter, pct) => {
+                if inverter.is_read_only() {
+                    bail!(
+                        "Command DischargeCutoffSocLimit disallowed: Inverter {} (datalog: {}) is in read-only mode",
+                        inverter.host(),
+                        inverter.datalog()
+                    );
+                }
                 self.set_hold(inverter, Register::DischgCutOffSocEod, pct)
                     .await
             }

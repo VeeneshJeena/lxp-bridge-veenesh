@@ -37,6 +37,7 @@ pub struct Inverter {
     pub publish_holdings_on_connect: Option<bool>,
     pub read_timeout: Option<u64>,
     pub poll_interval_seconds: Option<u64>,
+    pub read_only: Option<bool>, // Add this line
 }
 impl Inverter {
     pub fn enabled(&self) -> bool {
@@ -81,6 +82,10 @@ impl Inverter {
         } else {
             false
         }
+    }
+
+    pub fn is_read_only(&self) -> bool {
+        self.read_only.unwrap_or(false) // Default to false (not read-only) if not specified
     }
 } // }}}
 
