@@ -1,12 +1,12 @@
-name: lxp-bridge
+name: lxp-bridge-celsworth-vinni-custom
 version: v0.13.0
-slug: lxp-bridge
-description: Allows local communication with Luxpower inverters and bridges it to MQTT
+slug: lxp-bridge-celsworth-vinni-custom
+description: Custom version of lxp-bridge by celsworth/lxp-bridge. Modified by VeeneshJeena. Allows local communication with Luxpower inverters and bridges it to MQTT
 arch:
 - armv7
 - aarch64
 - amd64
-url: "https://github.com/celsworth/lxp-bridge"
+url: "https://github.com/VeeneshJeena/lxp-bridge"
 init: false
 startup: application
 stage: experimental
@@ -18,6 +18,9 @@ options:
     port: 8000
     serial: ""
     datalog: ""
+    read_timeout: 900
+    poll_interval_seconds: 60
+    read_only: false
     heartbeats: false
     publish_holdings_on_connect: false
   databases:
@@ -44,6 +47,9 @@ schema:
     port: port
     serial: str
     datalog: str
+    read_timeout: int?
+    poll_interval_seconds: int?
+    read_only: bool? # Add this line
     heartbeats: bool
     publish_holdings_on_connect: bool
   databases:

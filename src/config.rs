@@ -36,6 +36,8 @@ pub struct Inverter {
     pub heartbeats: Option<bool>,
     pub publish_holdings_on_connect: Option<bool>,
     pub read_timeout: Option<u64>,
+    pub poll_interval_seconds: Option<u64>,
+    pub read_only: Option<bool>, // Add this line
 }
 impl Inverter {
     pub fn enabled(&self) -> bool {
@@ -68,6 +70,22 @@ impl Inverter {
 
     pub fn read_timeout(&self) -> u64 {
         self.read_timeout.unwrap_or(900) // 15 minutes
+    }
+
+    pub fn poll_interval_seconds(&self) -> Option<u64> {
+        self.poll_interval_seconds
+    }
+
+    pub fn is_polling_enabled(&self) -> bool {
+        if let Some(interval) = self.poll_interval_seconds {
+            interval > 0
+        } else {
+            false
+        }
+    }
+
+    pub fn is_read_only(&self) -> bool {
+        self.read_only.unwrap_or(false) // Default to false (not read-only) if not specified
     }
 } // }}}
 

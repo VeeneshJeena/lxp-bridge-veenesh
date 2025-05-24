@@ -50,6 +50,7 @@ pub async fn app() -> Result<()> {
     let influx = Influx::new(config.clone(), channels.clone());
     let register_cache = RegisterCache::new(channels.clone());
     let coordinator = Coordinator::new(config.clone(), channels.clone());
+    coordinator.start_polling_tasks().await?; // Added this line. It's async.
 
     let inverters = config
         .enabled_inverters()

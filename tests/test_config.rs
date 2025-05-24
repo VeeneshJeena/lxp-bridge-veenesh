@@ -175,3 +175,114 @@ fn enabled_databases() {
 
     assert_eq!(config.enabled_databases().len(), 1);
 }
+
+#[test]
+fn test_inverter_config_read_only() {
+    let yaml_true = r#"
+inverters:
+- host: "1.2.3.4"
+  port: 8000
+  serial: "TEST01"
+  datalog: "DATA01"
+  read_only: true
+mqtt:
+  host: localhost
+influx:
+  url: http://localhost:8086
+  database: lxp
+    "#;
+    let config_true: Config = serde_yaml::from_str(yaml_true).unwrap();
+    assert_eq!(config_true.inverters[0].read_only, Some(true));
+    assert_eq!(config_true.inverters[0].is_read_only(), true);
+
+    let yaml_false = r#"
+inverters:
+- host: "1.2.3.4"
+  port: 8000
+  serial: "TEST01"
+  datalog: "DATA01"
+  read_only: false
+mqtt:
+  host: localhost
+influx:
+  url: http://localhost:8086
+  database: lxp
+    "#;
+    let config_false: Config = serde_yaml::from_str(yaml_false).unwrap();
+    assert_eq!(config_false.inverters[0].read_only, Some(false));
+    assert_eq!(config_false.inverters[0].is_read_only(), false);
+
+    let yaml_default = r#"
+inverters:
+- host: "1.2.3.4"
+  port: 8000
+  serial: "TEST01"
+  datalog: "DATA01"
+  # read_only field omitted
+mqtt:
+  host: localhost
+influx:
+  url: http://localhost:8086
+  database: lxp
+    "#;
+    let config_default: Config = serde_yaml::from_str(yaml_default).unwrap();
+    assert_eq!(config_default.inverters[0].read_only, None);
+    assert_eq!(config_default.inverters[0].is_read_only(), false); // Defaults to false
+}
+
+#[test]
+fn test_inverter_config_poll_interval_seconds() {
+    let yaml_interval_60 = r#"
+inverters:
+- host: "1.2.3.4"
+  port: 8000
+  serial: "TEST01"
+  datalog: "DATA01"
+  poll_interval_seconds: 60
+mqtt:
+  host: localhost
+influx:
+  url: http://localhost:8086
+  database: lxp
+    "#;
+    let config_60: Config = serde_yaml::from_str(yaml_interval_60).unwrap();
+    assert_eq!(config_60.inverters[0].poll_interval_seconds, Some(60));
+    assert_eq!(config_60.inverters[0].poll_interval_seconds(), Some(60));
+    assert_eq!(config_60.inverters[0].is_polling_enabled(), true);
+
+    let yaml_interval_0 = r#"
+inverters:
+- host: "1.2.3.4"
+  port: 8000
+  serial: "TEST01"
+  datalog: "DATA01"
+  poll_interval_seconds: 0
+mqtt:
+  host: localhost
+influx:
+  url: http://localhost:8086
+  database: lxp
+    "#;
+    let config_0: Config = serde_yaml::from_str(yaml_interval_0).unwrap();
+    assert_eq!(config_0.inverters[0].poll_interval_seconds, Some(0));
+    assert_eq!(config_0.inverters[0].poll_interval_seconds(), Some(0));
+    assert_eq!(config_0.inverters[0].is_polling_enabled(), false);
+
+    let yaml_interval_default = r#"
+inverters:
+- host: "1.2.3.4"
+  port: 8000
+  serial: "TEST01"
+  datalog: "DATA01"
+  # poll_interval_seconds field omitted
+mqtt:
+  host: localhost
+influx:
+  url: http://localhost:8086
+  database: lxp
+    "#;
+    let config_default: Config = serde_yaml::from_str(yaml_interval_default).unwrap();
+    assert_eq!(config_default.inverters[0].poll_interval_seconds, None);
+    assert_eq!(config_default.inverters[0].poll_interval_seconds(), None);
+    assert_eq!(config_default.inverters[0].is_polling_enabled(), false);
+}

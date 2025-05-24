@@ -1,12 +1,12 @@
-name: lxp-bridge (dev version)
+name: lxp-bridge-celsworth-vinni-custom (dev version)
 version: dev
-slug: lxp-bridge-dev
-description: Allows local communication with Luxpower inverters and bridges it to MQTT
+slug: lxp-bridge-celsworth-vinni-custom-dev
+description: Custom version of lxp-bridge by celsworth/lxp-bridge. Modified by VeeneshJeena. Development version. Allows local communication with Luxpower inverters and bridges it to MQTT
 arch:
 - armv7
 - aarch64
 - amd64
-url: "https://github.com/celsworth/lxp-bridge"
+url: "https://github.com/VeeneshJeena/lxp-bridge"
 init: false
 startup: application
 stage: experimental
