@@ -1,6 +1,14 @@
 mod common;
 use common::*;
 
+// Added imports
+use crate::command::Command;
+use crate::config; // Assuming config::Inverter is used directly
+use crate::coordinator::Coordinator;
+use crate::channels::Channels;
+use tokio::sync::broadcast::error::TryRecvError; // Already used, but good to note
+use lxp::packet::Packet; // Already used, but good to note
+
 #[tokio::test]
 async fn publishes_read_hold_mqtt() {
     common_setup();
@@ -61,6 +69,89 @@ async fn publishes_read_hold_mqtt() {
     };
 
     futures::try_join!(coordinator.start(), tf).unwrap();
+}
+
+// Helper function to create a Coordinator instance and a basic Inverter config for tests
+// The Coordinator's internal config can be default, as process_command now
+// uses the Inverter config directly from the Command enum for read-only checks.
+fn setup_coordinator_and_inverter(is_read_only: bool) -> (Coordinator, config::Inverter) {
+    common::common_setup(); // Ensure common setup is called
+    let config_wrapper = common::Factory::example_config_wrapped(); // Get a default config
+    let mut inverter_template = config_wrapper.inverters()[0].clone(); // Use as a template
+
+    inverter_template.read_only = Some(is_read_only);
+    // Ensure other fields are valid enough not to cause unrelated panics,
+    // like ensuring serial and datalog are not empty if Command constructors need them.
+    // The Factory::example_config_wrapped() should provide valid serials.
+
+    let channels = Channels::new();
+    let coordinator = Coordinator::new(config_wrapper, channels);
+
+    (coordinator, inverter_template)
+}
+
+#[tokio::test]
+async fn test_process_command_readonly_sethold_blocked() {
+    let (coordinator, read_only_inverter_config) = setup_coordinator_and_inverter(true);
+
+    // Ensure the command uses the inverter config we just set up
+    let cmd = Command::SetHold(read_only_inverter_config.clone(), 10, 100); 
+
+    let result = coordinator.process_command(cmd).await;
+    assert!(result.is_err(), "Command should have been blocked by read-only mode");
+    if let Err(e) = result {
+        let error_msg = e.to_string();
+        assert!(error_msg.contains("read-only mode"), "Error message should mention read-only: {}", error_msg);
+        assert!(error_msg.contains("SetHold"), "Error message should mention command name: {}", error_msg);
+    }
+}
+
+#[tokio::test]
+async fn test_process_command_writable_sethold_allowed() {
+    let (coordinator, writable_inverter_config) = setup_coordinator_and_inverter(false);
+
+    let cmd = Command::SetHold(writable_inverter_config.clone(), 10, 100);
+
+    let result = coordinator.process_command(cmd).await;
+    // In a real scenario, this might be Ok(()) or a different error if the command execution fails
+    // for reasons other than read-only. For this test, we mainly care it's NOT a read-only error.
+    if let Err(e) = result {
+        let error_msg = e.to_string();
+        assert!(!error_msg.contains("read-only mode"), "Error message should NOT mention read-only: {}", error_msg);
+    }
+    // If it's Ok(()), it passes implicitly, which is fine.
+}
+
+#[tokio::test]
+async fn test_process_command_readonly_readhold_allowed() {
+    let (coordinator, read_only_inverter_config) = setup_coordinator_and_inverter(true);
+
+    let cmd = Command::ReadHold(read_only_inverter_config.clone(), 12, 1); // register 12, count 1
+
+    let result = coordinator.process_command(cmd).await;
+    // ReadHold should be allowed even in read-only mode.
+    // It might fail for other reasons (e.g., inverter not responding in a real scenario),
+    // but it shouldn't be due to a read-only block.
+    if let Err(e) = result {
+        let error_msg = e.to_string();
+        assert!(!error_msg.contains("read-only mode"), "ReadHold command should not be blocked by read-only: {}", error_msg);
+    }
+    // If it's Ok(()), it passes.
+}
+
+#[tokio::test]
+async fn test_process_command_readonly_accharge_blocked() {
+    let (coordinator, read_only_inverter_config) = setup_coordinator_and_inverter(true);
+
+    let cmd = Command::AcCharge(read_only_inverter_config.clone(), true); // Enable AcCharge
+
+    let result = coordinator.process_command(cmd).await;
+    assert!(result.is_err(), "Command should have been blocked by read-only mode");
+    if let Err(e) = result {
+        let error_msg = e.to_string();
+        assert!(error_msg.contains("read-only mode"), "Error message should mention read-only: {}", error_msg);
+        assert!(error_msg.contains("AcCharge"), "Error message should mention command name: {}", error_msg);
+    }
 }
 
 #[tokio::test]
